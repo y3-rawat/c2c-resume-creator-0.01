@@ -165,8 +165,11 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
 def index():
     print("-2")
     if request.method == 'POST':
+        print("post1")
         file = request.files.get('file-upload')
+        print("post2")
         job_description = request.form.get('jobDescription')
+        print("post3")
         experience = request.form.get('experience')
         additional_info = request.form.get('additionalInfo')
         print('done1')
