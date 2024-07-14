@@ -168,7 +168,7 @@ def index():
         job_description = request.form.get('jobDescription')
         experience = request.form.get('experience')
         additional_info = request.form.get('additionalInfo')
-        
+        print('done1')
         if not experience:
             flash('Please select an experience level.', 'error')
             return render_template('index.html', job_description=job_description, additional_info=additional_info)
@@ -179,6 +179,7 @@ def index():
 
         if file and file.filename.endswith('.pdf'):
             try:
+                print('done2')
                 extracted_data, file_path = input_pdf_setup(file)
                 extracted_data_file = save_to_temp_file(extracted_data)
                 session['extracted_data_file'] = extracted_data_file
@@ -186,13 +187,16 @@ def index():
                 session['experience'] = experience
                 session['additional_info'] = additional_info
                 session['file_path'] = file_path
-
+                print('done3')
                 question = ques(extracted_data, job_description, additional_info)
                 q = a.final(question)
-
+                print('done4')
                 questions = extract_between_asterisks(q)
+                print('done5')
                 questions_file = save_to_temp_file(questions)
+                print('done5.9')
                 session['questions_file'] = questions_file
+                print('done6')
                 
                 return redirect(url_for('questionnaire', step=1))
             except Exception as e:
