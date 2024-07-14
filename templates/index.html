@@ -95,7 +95,7 @@
 <body>
     <div class="container">
         <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">ATS Resume Analyzer</h1>
-        <form id="resumeForm" class="space-y-6" method="POST" enctype="multipart/form-data">
+        <form id="resumeForm" class="space-y-6">
             <div class="upload-area" id="dropArea">
                 <input type="file" id="file-upload" name="file-upload" accept=".pdf" class="hidden">
                 <label for="file-upload" class="cursor-pointer">
@@ -217,6 +217,7 @@
         });
 
         form.addEventListener('submit', function(e) {
+            e.preventDefault();
             let isValid = true;
 
             if (!fileInput.files.length) {
@@ -240,11 +241,26 @@
                 document.getElementById('experienceError').classList.add('hidden');
             }
 
-            if (!isValid) {
-                e.preventDefault();
+            if (isValid) {
+                const formData = new FormData(form);
+                fetch('/submit', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.redirect) {
+                        window.location.href = data.redirect;
+                    } else if (data.error) {
+                        showError(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('An error occurred. Please try again.');
+                });
             }
         });
     </script>
 </body>
 </html>
-

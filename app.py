@@ -1,6 +1,6 @@
 import logging
 from typing import Dict, Any, List, Tuple
-from flask import Flask, request, render_template, redirect, url_for, flash, session
+from flask import Flask, request, render_template, redirect, url_for, flash, session, jsonify
 import os
 from langchain_community.document_loaders import PyPDFLoader
 import apis as a
@@ -159,49 +159,46 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
                 return {"error": "Failed to parse JSON from response"}
         else:
             return {"error": "No valid JSON found in response"}
-        
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET'])
 def index():
-    if request.method == 'POST':
-        file = request.files.get('file-upload')
-        job_description = request.form.get('jobDescription')
-        experience = request.form.get('experience')
-        additional_info = request.form.get('additionalInfo')
-        
-        if not experience:
-            flash('Please select an experience level.', 'error')
-            return render_template('index.html', job_description=job_description, additional_info=additional_info)
-
-        if not job_description:
-            flash('Job description is required.', 'error')
-            return render_template('index.html', job_description=job_description, additional_info=additional_info)
-
-        if file and file.filename.endswith('.pdf'):
-            try:
-                extracted_data, file_path = input_pdf_setup(file)
-                extracted_data_file = save_to_temp_file(extracted_data)
-                session['extracted_data_file'] = extracted_data_file
-                session['job_description'] = job_description
-                session['experience'] = experience
-                session['additional_info'] = additional_info
-                session['file_path'] = file_path
-
-                question = ques(extracted_data, job_description, additional_info)
-                q = a.final(question)
-
-                questions = extract_between_asterisks(q)
-                questions_file = save_to_temp_file(questions)
-                session['questions_file'] = questions_file
-                
-                return redirect(url_for('questionnaire', step=1))
-            except Exception as e:
-                flash(str(e), 'error')
-                return render_template('index.html', job_description=job_description, additional_info=additional_info)
-        else:
-            flash('Please upload a PDF file.', 'error')
-    
     return render_template('index.html')
+
+@app.route('/submit', methods=['POST'])
+def submit_form():
+    file = request.files.get('file-upload')
+    job_description = request.form.get('jobDescription')
+    experience = request.form.get('experience')
+    additional_info = request.form.get('additionalInfo')
+    
+    if not experience:
+        return jsonify({"error": "Please select an experience level."}), 400
+
+    if not job_description:
+        return jsonify({"error": "Job description is required."}), 400
+
+    if file and file.filename.endswith('.pdf'):
+        try:
+            extracted_data, file_path = input_pdf_setup(file)
+            extracted_data_file = save_to_temp_file(extracted_data)
+            session['extracted_data_file'] = extracted_data_file
+            session['job_description'] = job_description
+            session['experience'] = experience
+            session['additional_info'] = additional_info
+            session['file_path'] = file_path
+
+            question = ques(extracted_data, job_description, additional_info)
+            q = a.final(question)
+
+            questions = extract_between_asterisks(q)
+            questions_file = save_to_temp_file(questions)
+            session['questions_file'] = questions_file
+            
+            return jsonify({"redirect": url_for('questionnaire', step=1)})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "Please upload a PDF file."}), 400
 
 @app.route('/questionnaire/<int:step>', methods=['GET', 'POST'])
 def questionnaire(step: int):
@@ -263,7 +260,6 @@ def result():
         logging.error(f"Error in result route: {str(e)}", exc_info=True)
         flash(f"An error occurred: {str(e)}", 'error')
         return redirect(url_for('index'))
-
 
 @app.route('/edit/<int:step>')
 def edit_input(step: int):
