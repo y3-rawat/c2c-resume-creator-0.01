@@ -1,5 +1,4 @@
 import logging
-from typing import Dict, Any, List, Tuple
 from flask import Flask, request, render_template, redirect, url_for, flash, session
 import os
 from langchain_community.document_loaders import PyPDFLoader
@@ -163,27 +162,31 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    print("-2")
+    print("-2: Entered the route")
     if request.method == 'POST':
-        print("post1")
+        print("post1: Handling POST request")
         file = request.files.get('file-upload')
-        print("post2")
+        print(f"post2: file: {file}")
         job_description = request.form.get('jobDescription')
-        print("post")
+        print(f"post3: job_description: {job_description}")
         experience = request.form.get('experience')
+        print(f"post4: experience: {experience}")
         additional_info = request.form.get('additionalInfo')
-        print('done1')
+        print(f"post5: additional_info: {additional_info}")
+
         if not experience:
+            print("post6: Experience not selected")
             flash('Please select an experience level.', 'error')
             return render_template('index.html', job_description=job_description, additional_info=additional_info)
 
         if not job_description:
+            print("post7: Job description not provided")
             flash('Job description is required.', 'error')
             return render_template('index.html', job_description=job_description, additional_info=additional_info)
 
         if file and file.filename.endswith('.pdf'):
             try:
-                print('done2')
+                print('post8: Processing PDF file')
                 extracted_data, file_path = input_pdf_setup(file)
                 extracted_data_file = save_to_temp_file(extracted_data)
                 session['extracted_data_file'] = extracted_data_file
@@ -191,24 +194,22 @@ def index():
                 session['experience'] = experience
                 session['additional_info'] = additional_info
                 session['file_path'] = file_path
-                print('done3')
+                print('post9: File processed successfully')
                 question = ques(extracted_data, job_description, additional_info)
                 q = a.final(question)
-                print('done4')
                 questions = extract_between_asterisks(q)
-                print('done5')
                 questions_file = save_to_temp_file(questions)
-                print('done5.9')
                 session['questions_file'] = questions_file
-                print('done6')
-                
                 return redirect(url_for('questionnaire', step=1))
             except Exception as e:
+                print(f'post10: Exception occurred - {str(e)}')
                 flash(str(e), 'error')
                 return render_template('index.html', job_description=job_description, additional_info=additional_info)
         else:
+            print("post11: No file uploaded or not a PDF file")
             flash('Please upload a PDF file.', 'error')
-    print("other")
+            return render_template('index.html', job_description=job_description, additional_info=additional_info)
+    print("other: Handling GET request")
     return render_template('index.html')
 
 
