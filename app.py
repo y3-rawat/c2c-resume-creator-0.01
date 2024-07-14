@@ -164,7 +164,7 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
 @app.route('/', methods=['GET', 'POST'])
 def index():
     print("-2")
-    if request.method == 'POST':
+    if request.method == 'GET':
         print("post1")
         file = request.files.get('file-upload')
         print("post2")
