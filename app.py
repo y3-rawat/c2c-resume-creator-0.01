@@ -163,6 +163,7 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
+    print("-2")
     if request.method == 'POST':
         file = request.files.get('file-upload')
         job_description = request.form.get('jobDescription')
@@ -274,4 +275,5 @@ def edit_input(step: int):
     return redirect(url_for('questionnaire', step=step))
 
 if __name__ == '__main__':
+    print("start")
     app.run(debug=True, port=3313)
