@@ -3,7 +3,7 @@ from typing import Dict, Any, List, Tuple
 from flask import Flask, request, render_template, redirect, url_for, flash, session
 import os
 from langchain_community.document_loaders import PyPDFLoader
-import apis as a  # Ensure this module is correctly implemented and imported
+import apis as a
 import re
 import tempfile
 import json
@@ -159,19 +159,20 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
                 return {"error": "Failed to parse JSON from response"}
         else:
             return {"error": "No valid JSON found in response"}
+        
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    logging.info("-2")
+    print("-2")
     if request.method == 'POST':
-        logging.info("post1")
+        print("post1")
         file = request.files.get('file-upload')
-        logging.info("post2")
+        print("post2")
         job_description = request.form.get('jobDescription')
-        logging.info("post3")
+        print("post")
         experience = request.form.get('experience')
         additional_info = request.form.get('additionalInfo')
-        logging.info('done1')
+        print('done1')
         if not experience:
             flash('Please select an experience level.', 'error')
             return render_template('index.html', job_description=job_description, additional_info=additional_info)
@@ -182,7 +183,7 @@ def index():
 
         if file and file.filename.endswith('.pdf'):
             try:
-                logging.info('done2')
+                print('done2')
                 extracted_data, file_path = input_pdf_setup(file)
                 extracted_data_file = save_to_temp_file(extracted_data)
                 session['extracted_data_file'] = extracted_data_file
@@ -190,26 +191,26 @@ def index():
                 session['experience'] = experience
                 session['additional_info'] = additional_info
                 session['file_path'] = file_path
-                logging.info('done3')
+                print('done3')
                 question = ques(extracted_data, job_description, additional_info)
                 q = a.final(question)
-                logging.info('done4')
+                print('done4')
                 questions = extract_between_asterisks(q)
-                logging.info('done5')
+                print('done5')
                 questions_file = save_to_temp_file(questions)
-                logging.info('done5.9')
+                print('done5.9')
                 session['questions_file'] = questions_file
-                logging.info('done6')
+                print('done6')
                 
                 return redirect(url_for('questionnaire', step=1))
             except Exception as e:
                 flash(str(e), 'error')
-                logging.error(f"Error processing PDF: {e}", exc_info=True)
                 return render_template('index.html', job_description=job_description, additional_info=additional_info)
         else:
             flash('Please upload a PDF file.', 'error')
-    
+    print("other")
     return render_template('index.html')
+
 
 @app.route('/questionnaire/<int:step>', methods=['GET', 'POST'])
 def questionnaire(step: int):
@@ -272,11 +273,11 @@ def result():
         flash(f"An error occurred: {str(e)}", 'error')
         return redirect(url_for('index'))
 
+
 @app.route('/edit/<int:step>')
 def edit_input(step: int):
     return redirect(url_for('questionnaire', step=step))
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    logging.info("start")
+    print("start")
     app.run(debug=True, port=3313)
