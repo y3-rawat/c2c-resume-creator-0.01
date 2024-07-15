@@ -123,14 +123,24 @@ def input_pdf_setup(uploaded_file) -> Tuple[str, str]:
     content = f"{pdf_prompt} here is the content of resume {text}"
     return a.final(content), filepath
 
+
 def save_to_temp_file(data: Any) -> str:
     with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8') as temp_file:
         json.dump(data, temp_file, ensure_ascii=False)
-    return temp_file.name
+        temp_file_path = temp_file.name
+    return temp_file_path
 
 def load_from_temp_file(file_path: str) -> Any:
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return json.load(file)
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        logging.error(f"File not found: {file_path}")
+        return None
+    except json.JSONDecodeError:
+        logging.error(f"Invalid JSON in file: {file_path}")
+        return None
+
 
 def run_prompts_in_parallel(*prompts: str) -> Dict[str, Any]:
     results = {}
@@ -164,6 +174,7 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
 def index():
     return render_template('index.html')
 
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     if 'file' not in request.files:
@@ -179,7 +190,8 @@ def upload_file():
             session['file_path'] = file_path
             return jsonify({"success": "File uploaded and processed successfully"})
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            logging.error(f"Error processing uploaded file: {str(e)}")
+            return jsonify({"error": f"Error processing file: {str(e)}"}), 500
     else:
         return jsonify({"error": "Please upload a PDF file"}), 400
 
@@ -200,6 +212,9 @@ def submit_form():
 
     try:
         extracted_data = load_from_temp_file(session['extracted_data_file'])
+        if extracted_data is None:
+            return jsonify({"error": "Failed to load extracted data. Please try uploading your resume again."}), 500
+
         session['job_description'] = job_description
         session['experience'] = experience
         session['additional_info'] = additional_info
@@ -213,9 +228,8 @@ def submit_form():
         
         return jsonify({"redirect": url_for('questionnaire', step=1)})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    else:
-        return jsonify({"error": "Please upload a PDF file."}), 400
+        logging.error(f"Error in submit_form: {str(e)}")
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 @app.route('/questionnaire/<int:step>', methods=['GET', 'POST'])
 def questionnaire(step: int):
@@ -241,12 +255,31 @@ def questionnaire(step: int):
 def result():
     try:
         # Retrieve data from session
-        extracted_data = load_from_temp_file(session.get('extracted_data_file'))
+        extracted_data_file = session.get('extracted_data_file')
+        if not extracted_data_file or not os.path.exists(extracted_data_file):
+            flash("Resume data not found. Please upload your resume again.", 'error')
+            return redirect(url_for('index'))
+
+        extracted_data = load_from_temp_file(extracted_data_file)
+        if extracted_data is None:
+            flash("Failed to load resume data. Please try again.", 'error')
+            return redirect(url_for('index'))
+
         job_description = session.get('job_description', '')
         experience = session.get('experience', 'No Experience')
         additional_info = session.get('additional_info', '')
         inputs = session.get('inputs', {})
-        questions = load_from_temp_file(session.get('questions_file'))
+        
+        questions_file = session.get('questions_file')
+        if not questions_file or not os.path.exists(questions_file):
+            flash("Question data not found. Please start over.", 'error')
+            return redirect(url_for('index'))
+
+        questions = load_from_temp_file(questions_file)
+        if questions is None:
+            flash("Failed to load questions. Please try again.", 'error')
+            return redirect(url_for('index'))
+
 
         # Prepare other questions
         other_questions = {questions[i]: inputs.get(f'input{i+1}', '') for i in range(len(questions))}
