@@ -126,14 +126,9 @@ def input_pdf_setup(uploaded_file) -> Tuple[str, str]:
 def save_to_temp_file(data: Any) -> str:
     with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8') as temp_file:
         json.dump(data, temp_file, ensure_ascii=False)
-    logging.debug(f"Saved temporary file at {temp_file.name}")
     return temp_file.name
 
 def load_from_temp_file(file_path: str) -> Any:
-    logging.debug(f"Loading from temporary file at {file_path}")
-    if not os.path.exists(file_path):
-        logging.error(f"File not found: {file_path}")
-        raise FileNotFoundError(f"No such file: '{file_path}'")
     with open(file_path, 'r', encoding='utf-8') as file:
         return json.load(file)
 
@@ -201,7 +196,6 @@ def submit_form():
             
             return jsonify({"redirect": url_for('questionnaire', step=1)})
         except Exception as e:
-            logging.error(f"Error in submit_form: {str(e)}", exc_info=True)
             return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "Please upload a PDF file."}), 400
@@ -210,16 +204,7 @@ def submit_form():
 def questionnaire(step: int):
     inputs = session.get('inputs', {})
     questions_file = session.get('questions_file')
-    
-    if not questions_file:
-        logging.error("Questions file is missing in session.")
-        return redirect(url_for('index'))
-    
-    try:
-        questions = load_from_temp_file(questions_file)
-    except FileNotFoundError as e:
-        logging.error(f"Error loading questions file: {str(e)}", exc_info=True)
-        return redirect(url_for('index'))
+    questions = load_from_temp_file(questions_file)
 
     if request.method == 'POST':
         inputs[f'input{step}'] = request.form.get('input_value')
@@ -281,5 +266,4 @@ def edit_input(step: int):
     return redirect(url_for('questionnaire', step=step))
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
     app.run(debug=True, port=3313)
