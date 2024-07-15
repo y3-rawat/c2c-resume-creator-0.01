@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ATS Resume Analyzer</title>
+    <title>ATS Resume Analyzer</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
@@ -134,133 +135,155 @@
                 <p id="experienceError" class="mt-1 text-sm text-red-600 hidden">Please select an experience level.</p>
             </div>
 
-            <button type="submit" class="btn-primary">
+              <button type="submit" class="btn-primary">
                 <i class="fas fa-search-plus mr-2"></i> Analyze Resume
             </button>
         </form>
     </div>
 
-    <script>
+     <script>
         const dropArea = document.getElementById('dropArea');
-        const fileInput = document.getElementById('file-upload');
-        const resumeError = document.getElementById('resumeError');
-        const fileInfo = document.getElementById('fileInfo');
-        const form = document.getElementById('resumeForm');
+const fileInput = document.getElementById('file-upload');
+const resumeError = document.getElementById('resumeError');
+const fileInfo = document.getElementById('fileInfo');
+const form = document.getElementById('resumeForm');
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, preventDefaults, false);
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, highlight, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+    dropArea.classList.add('drag-over');
+}
+
+function unhighlight(e) {
+    dropArea.classList.remove('drag-over');
+}
+
+dropArea.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    handleFiles(files);
+}
+
+function handleFiles(files) {
+    if (files.length > 0) {
+        const file = files[0];
+        if (file.type === 'application/pdf') {
+            fileInput.files = files;
+            uploadFile(file);
+        } else {
+            showError('Please upload a PDF file.');
+        }
+    }
+}
+
+function uploadFile(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    fetch('/upload', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateFileInfo(file);
+        } else if (data.error) {
+            showError(data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showError('An error occurred while uploading the file. Please try again.');
+    });
+}
+
+function updateFileInfo(file) {
+    fileInfo.innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i>File selected: ${file.name}`;
+    fileInfo.classList.remove('hidden');
+    resumeError.classList.add('hidden');
+}
+
+function showError(message) {
+    resumeError.innerHTML = `<i class="fas fa-exclamation-circle text-red-500 mr-2"></i>${message}`;
+    resumeError.classList.remove('hidden');
+    fileInfo.classList.add('hidden');
+}
+
+fileInput.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        if (file.type === 'application/pdf') {
+            uploadFile(file);
+        } else {
+            showError('Please upload a PDF file.');
+            this.value = ''; // Clear the file input
+        }
+    }
+});
+
+form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    let isValid = true;
+
+    if (!fileInput.files.length) {
+        showError('Please upload a resume.');
+        isValid = false;
+    }
+
+    const jobDescription = document.getElementById('jobDescription');
+    if (!jobDescription.value.trim()) {
+        document.getElementById('jobDescriptionError').classList.remove('hidden');
+        isValid = false;
+    } else {
+        document.getElementById('jobDescriptionError').classList.add('hidden');
+    }
+
+    const experience = document.querySelector('input[name="experience"]:checked');
+    if (!experience) {
+        document.getElementById('experienceError').classList.remove('hidden');
+        isValid = false;
+    } else {
+        document.getElementById('experienceError').classList.add('hidden');
+    }
+
+    if (isValid) {
+        const formData = new FormData(form);
+        fetch('/submit', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else if (data.error) {
+                showError(data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showError('An error occurred. Please try again.');
         });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropArea.addEventListener(eventName, highlight, false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropArea.addEventListener(eventName, unhighlight, false);
-        });
-
-        function highlight(e) {
-            dropArea.classList.add('drag-over');
-        }
-
-        function unhighlight(e) {
-            dropArea.classList.remove('drag-over');
-        }
-
-        dropArea.addEventListener('drop', handleDrop, false);
-
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        }
-
-        function handleFiles(files) {
-            if (files.length > 0) {
-                const file = files[0];
-                if (file.type === 'application/pdf') {
-                    fileInput.files = files;
-                    updateFileInfo(file);
-                } else {
-                    showError('Please upload a PDF file.');
-                }
-            }
-        }
-
-        function updateFileInfo(file) {
-            fileInfo.innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i>File selected: ${file.name}`;
-            fileInfo.classList.remove('hidden');
-            resumeError.classList.add('hidden');
-        }
-
-        function showError(message) {
-            resumeError.innerHTML = `<i class="fas fa-exclamation-circle text-red-500 mr-2"></i>${message}`;
-            resumeError.classList.remove('hidden');
-            fileInfo.classList.add('hidden');
-        }
-
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                if (file.type === 'application/pdf') {
-                    updateFileInfo(file);
-                } else {
-                    showError('Please upload a PDF file.');
-                    this.value = ''; // Clear the file input
-                }
-            }
-        });
-
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            let isValid = true;
-
-            if (!fileInput.files.length) {
-                showError('Please upload a resume.');
-                isValid = false;
-            }
-
-            const jobDescription = document.getElementById('jobDescription');
-            if (!jobDescription.value.trim()) {
-                document.getElementById('jobDescriptionError').classList.remove('hidden');
-                isValid = false;
-            } else {
-                document.getElementById('jobDescriptionError').classList.add('hidden');
-            }
-
-            const experience = document.querySelector('input[name="experience"]:checked');
-            if (!experience) {
-                document.getElementById('experienceError').classList.remove('hidden');
-                isValid = false;
-            } else {
-                document.getElementById('experienceError').classList.add('hidden');
-            }
-
-            if (isValid) {
-                const formData = new FormData(form);
-                fetch('/submit', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.redirect) {
-                        window.location.href = data.redirect;
-                    } else if (data.error) {
-                        showError(data.error);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    showError('An error occurred. Please try again.');
-                });
-            }
-        });
+    }
+});
     </script>
 </body>
 </html>
