@@ -59,7 +59,21 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         }
-
+        .progress-bar-container {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 0.25rem;
+            margin-top: 1rem;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 0;
+            height: 0.5rem;
+            background-color: #3b82f6;
+            border-radius: 0.25rem;
+            transition: width 0.3s ease;
+        }
         .input-field {
             width: 100%;
             padding: 0.75rem;
@@ -106,8 +120,12 @@
                     <p class="text-xs text-gray-400 mt-2">PDF up to 10MB</p>
                 </label>
             </div>
+            <div class="progress-bar-container" id="progressBarContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
             <p id="fileInfo" class="mt-2 text-sm text-green-600 hidden"></p>
             <p id="resumeError" class="mt-2 text-sm text-red-600 hidden"></p>
+
 
             <div>
                 <label for="jobDescription" class="block text-lg font-medium text-gray-700">Job Description</label>
@@ -194,27 +212,57 @@ function handleFiles(files) {
 }
 
 function uploadFile(file) {
-    const formData = new FormData();
-    formData.append('file', file);
+            const formData = new FormData();
+            formData.append('file', file);
 
-    fetch('/upload', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            updateFileInfo(file);
-        } else if (data.error) {
-            showError(data.error);
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/upload', true);
+
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentComplete = (e.loaded / e.total) * 100;
+                    updateProgressBar(percentComplete);
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.success) {
+                        updateFileInfo(file);
+                    } else if (response.error) {
+                        showError(response.error);
+                    }
+                } else {
+                    showError('An error occurred while uploading the file. Please try again.');
+                }
+                hideProgressBar();
+            };
+
+            xhr.onerror = function() {
+                console.error('Error:', xhr.statusText);
+                showError('An error occurred while uploading the file. Please try again.');
+                hideProgressBar();
+            };
+
+            showProgressBar();
+            xhr.send(formData);
         }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showError('An error occurred while uploading the file. Please try again.');
-    });
-}
 
+        function showProgressBar() {
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            progressBarContainer.style.display = 'block';
+        }
+
+        function hideProgressBar() {
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            progressBarContainer.style.display = 'none';
+        }
+
+        function updateProgressBar(percent) {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.width = percent + '%';
+        }
 function updateFileInfo(file) {
     fileInfo.innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i>File selected: ${file.name}`;
     fileInfo.classList.remove('hidden');
