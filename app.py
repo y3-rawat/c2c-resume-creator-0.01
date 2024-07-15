@@ -164,9 +164,27 @@ def process_prompt(prompt: str) -> Dict[str, Any]:
 def index():
     return render_template('index.html')
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if file and file.filename.endswith('.pdf'):
+        try:
+            extracted_data, file_path = input_pdf_setup(file)
+            extracted_data_file = save_to_temp_file(extracted_data)
+            session['extracted_data_file'] = extracted_data_file
+            session['file_path'] = file_path
+            return jsonify({"success": "File uploaded and processed successfully"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    else:
+        return jsonify({"error": "Please upload a PDF file"}), 400
+
 @app.route('/submit', methods=['POST'])
 def submit_form():
-    file = request.files.get('file-upload')
     job_description = request.form.get('jobDescription')
     experience = request.form.get('experience')
     additional_info = request.form.get('additionalInfo')
@@ -177,26 +195,25 @@ def submit_form():
     if not job_description:
         return jsonify({"error": "Job description is required."}), 400
 
-    if file and file.filename.endswith('.pdf'):
-        try:
-            extracted_data, file_path = input_pdf_setup(file)
-            extracted_data_file = save_to_temp_file(extracted_data)
-            session['extracted_data_file'] = extracted_data_file
-            session['job_description'] = job_description
-            session['experience'] = experience
-            session['additional_info'] = additional_info
-            session['file_path'] = file_path
+    if 'extracted_data_file' not in session:
+        return jsonify({"error": "Please upload a resume first."}), 400
 
-            question = ques(extracted_data, job_description, additional_info)
-            q = a.final(question)
+    try:
+        extracted_data = load_from_temp_file(session['extracted_data_file'])
+        session['job_description'] = job_description
+        session['experience'] = experience
+        session['additional_info'] = additional_info
 
-            questions = extract_between_asterisks(q)
-            questions_file = save_to_temp_file(questions)
-            session['questions_file'] = questions_file
-            
-            return jsonify({"redirect": url_for('questionnaire', step=1)})
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
+        question = ques(extracted_data, job_description, additional_info)
+        q = a.final(question)
+
+        questions = extract_between_asterisks(q)
+        questions_file = save_to_temp_file(questions)
+        session['questions_file'] = questions_file
+        
+        return jsonify({"redirect": url_for('questionnaire', step=1)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
     else:
         return jsonify({"error": "Please upload a PDF file."}), 400
 
