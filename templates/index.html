@@ -211,58 +211,65 @@ function handleFiles(files) {
     }
 }
 
+
 function uploadFile(file) {
-            const formData = new FormData();
-            formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/upload', true);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload', true);
 
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percentComplete = (e.loaded / e.total) * 100;
-                    updateProgressBar(percentComplete);
-                }
-            };
+    xhr.upload.onprogress = function(e) {
+        if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            updateProgressBar(percentComplete * 0.9); // Only fill up to 90%
+        }
+    };
 
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    const response = JSON.parse(xhr.responseText);
-                    if (response.success) {
-                        updateFileInfo(file);
-                    } else if (response.error) {
-                        showError(response.error);
-                    }
-                } else {
-                    showError('An error occurred while uploading the file. Please try again.');
-                }
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            const response = JSON.parse(xhr.responseText);
+            if (response.success) {
+                updateProgressBar(100); // Fill to 100% when server confirms success
+                setTimeout(() => {
+                    hideProgressBar();
+                    updateFileInfo(file);
+                }, 500); // Delay hiding progress bar for visual feedback
+            } else if (response.error) {
+                showError(response.error);
                 hideProgressBar();
-            };
-
-            xhr.onerror = function() {
-                console.error('Error:', xhr.statusText);
-                showError('An error occurred while uploading the file. Please try again.');
-                hideProgressBar();
-            };
-
-            showProgressBar();
-            xhr.send(formData);
+            }
+        } else {
+            showError('An error occurred while uploading the file. Please try again.');
+            hideProgressBar();
         }
+    };
 
-        function showProgressBar() {
-            const progressBarContainer = document.getElementById('progressBarContainer');
-            progressBarContainer.style.display = 'block';
-        }
+    xhr.onerror = function() {
+        console.error('Error:', xhr.statusText);
+        showError('An error occurred while uploading the file. Please try again.');
+        hideProgressBar();
+    };
 
-        function hideProgressBar() {
-            const progressBarContainer = document.getElementById('progressBarContainer');
-            progressBarContainer.style.display = 'none';
-        }
+    showProgressBar();
+    xhr.send(formData);
+}
 
-        function updateProgressBar(percent) {
-            const progressBar = document.getElementById('progressBar');
-            progressBar.style.width = percent + '%';
-        }
+function showProgressBar() {
+    const progressBarContainer = document.getElementById('progressBarContainer');
+    progressBarContainer.style.display = 'block';
+    updateProgressBar(0); // Reset to 0%
+}
+
+function hideProgressBar() {
+    const progressBarContainer = document.getElementById('progressBarContainer');
+    progressBarContainer.style.display = 'none';
+}
+
+function updateProgressBar(percent) {
+    const progressBar = document.getElementById('progressBar');
+    progressBar.style.width = percent + '%';
+}
 function updateFileInfo(file) {
     fileInfo.innerHTML = `<i class="fas fa-check-circle text-green-500 mr-2"></i>File selected: ${file.name}`;
     fileInfo.classList.remove('hidden');
